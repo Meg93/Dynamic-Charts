@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>D3 Example</title>
+    <script src="d3/d3.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/d3-legend/1.1.0/d3-legend.js"></script>
+    <style>
+    .header{
+        text-align: center;
+      }
+      .axis text {
+        
+        font-size: 12pt;
+      }
+      .axis .label {
+        font-size: 20pt;
+      }
+
+      .axis path, .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+      .color-legend text {
+        font-size: 12pt;
+      }
+
+    </style>
+   
+
+  </head>
+  <body>
+    <div class="header">
+      <h1>Religion Difference of the Five Country </h1>
+    </div>
+     <form style="margin-left:80px">
+  <label><input type="radio" name="mode" value="grouped"> Grouped</label>
+  <label><input type="radio" name="mode" value="stacked" checked> Stacked</label>
+</form>
+    <div class="area2" id="area2"></div>
+    <p style="text-align:center">
+      <a href="indexFinal.html">
+      See Population of Each Religion in Each Top 5 Populous Country
+    </a>
+    </p>
+    <script>
+    //same part
+      var outerWidth = 900;
+      var outerHeight = 400;
+      var margin = { left: 90, top: 30, right: 30, bottom: 50 };
+      var barPadding = 0.2;
+
+      var xColumn = "country";
+      var yColumn = "population";
+      //add color column
+      var colorColumn = "religion";
+      var layerColumn = colorColumn;
+      //the same
+      var innerWidth  = outerWidth  - margin.left - margin.right;
+      var innerHeight = outerHeight - margin.top  - margin.bottom;
+      //add svg to chart2 area
+      var chart2 = d3.select("#area2").append("svg")
+        .attr("width",  outerWidth)
+        .attr("height", outerHeight);
+        //the same but the position of the group
+      var g = chart2.append("g")
+        .attr("transform", "translate(200,30)");
+        //same
+      var xAxisG = g.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + innerHeight + ")");
+      var yAxisG = g.append("g")
+        .attr("class", "y axis");
+        //group color legend
+      var colorLegendG = g.append("g")
+        .attr("class", "color-legend")
+        .attr("transform", "translate(600, 0)");
+//no domain setting first
+      var xScale = d3.scale.ordinal().rangeBands([0, innerWidth], barPadding);
+      var yScale = d3.scale.linear().range([innerHeight, 0]);
+      //set color scale
+      var colorScale = d3.scale.category10();
+
+      // Use a modified SI formatter that uses "B" for Billion.
+      var siFormat = d3.format("s");
+      var customTickFormat = function (d){
+        return siFormat(d).replace("G", "B");
+      };
+      //same
+      var xAxis = d3.svg.axis().scale(xScale).orient("bottom")
+        .outerTickSize(0);
+      var yAxis = d3.svg.axis().scale(yScale).orient("left")
+        .ticks(5)
+        .tickFormat(customTickFormat)
+        .outerTickSize(0);
+
+      var colorLegend = d3.legend.color()
+        .scale(colorScale)
+        .shapePadding(3)
+        .shapeWidth(15)
+        .shapeHeight(15)
+        .labelOffset(4);
+
+      function render(data){
+        d3.selectAll("input").on("change", change);
+
+        var timeout = setTimeout(function() {
+          d3.select("input[value=\"grouped\"]").property("checked", true).each(change);
+        }, 800);
+
+function change() {
+  clearTimeout(timeout);
+  if (this.value === "grouped") transitionGrouped();
+  else transitionStacked();
+}
+function transitionGrouped(){
+  var nested = d3.nest()
+      .key(function (d){ return d[layerColumn]; })
+      .entries(data)
+
+    var stack = d3.layout.stack()
+      .y(function (d){ return d[yColumn]; })
+      .values(function (d){ return d.values; });
+
+    var layers = stack(nested);
+
+    xScale.domain(layers[0].values.map(function (d){
+      return d[xColumn];
+    }));
+
+    yScale.domain([
+      0,
+      d3.max(layers, function (layer){
+        return d3.max(layer.values, function (d){
+          return d.y0 + d.y;
+        });
+      })
+    ]);
+
+    colorScale.domain(layers.map(function (layer){
+      return layer.key;
+    }));
+
+    xAxisG.call(xAxis)
+    .selectAll("text")
+          .attr("dx", "-.8em")
+          .attr("dy", "1em")
+          .attr("transform", "rotate(-20)" ) ;;
+    yAxisG.call(yAxis);
+
+    var layers = g.selectAll(".layer").data(layers);
+    layers.enter().append("g").attr("class", "layer");
+    layers.exit().remove();
+    layers.style("fill", function (d){
+      return colorScale(d.key);
+    });
+
+    var bars = layers.selectAll("rect").data(function (d){
+      return d.values;
+    });
+    bars.enter().append("rect")
+    bars.exit().remove();
+    bars
+      .transition()
+      .duration(500)
+      .delay(function(d,i){
+        return i*10;
+      })
+      .attr("y", function (d){ return yScale(d.y0 + d.y); })
+      .attr("height", function (d){ return innerHeight - yScale(d.y); })
+      .transition()
+      .attr("x", function (d){ return xScale(d[xColumn]); })
+      .attr("width", xScale.rangeBand())
+      
+    colorLegendG.call(colorLegend);
+    }
+    function transitionStacked(){
+       var nested = d3.nest()
+          .key(function (d){ return d[layerColumn]; })
+          .entries(data)
+
+        var stack = d3.layout.stack()
+          .y(function (d){ return d[yColumn]; })
+          .values(function (d){ return d.values; });
+
+        var layers = stack(nested);
+
+        xScale.domain(layers[0].values.map(function (d){
+          return d[xColumn];
+        }));
+
+        yScale.domain([
+          0,
+          d3.max(layers, function (layer){
+            return d3.max(layer.values, function (d){
+              return d.y;
+            });
+          })
+        ]);
+
+        colorScale.domain(layers.map(function (layer){
+          return layer.key;
+        }));
+
+        xAxisG.call(xAxis);
+        yAxisG.call(yAxis);
+
+        var layers = g.selectAll(".layer").data(layers);
+        layers.enter().append("g").attr("class", "layer");
+        layers.exit().remove();
+        layers.style("fill", function (d){
+          return colorScale(d.key);
+        });
+
+        var bars = layers.selectAll("rect").data(function (d){
+          return d.values;
+        });
+        var barWidth = xScale.rangeBand() / colorScale.domain().length;
+        bars.enter().append("rect")
+        bars.exit().remove();
+        bars
+          .transition()
+          .duration(500)
+          .delay(function(d,i){
+            return i*10;
+          })
+           .attr("x", function (d, i, j){
+            return xScale(d[xColumn]) + barWidth * j;
+          })
+          .attr("width", barWidth)
+           .transition()
+          .attr("y", function (d){ return yScale(d.y); })
+          .attr("height", function (d){ return innerHeight - yScale(d.y); })
+          
+          
+
+        colorLegendG.call(colorLegend);
+    }
+
+ }
+    //end of function render
+      function type(d){
+        d.population = +d.population;
+        return d;
+      }
+
+      d3.csv("top5religion.csv", type, render);
+
+    </script>
+  </body>
+</html>

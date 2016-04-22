@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>D3 Example</title>
+    <script src="d3/d3.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/d3-legend/1.1.0/d3-legend.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+    <style>
+    
+      .axis text {
+        font-size: 16pt;
+      }
+      .axis .label {
+        font-size: 20pt;
+      }
+
+      .axis path, .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+      .color-legend text {
+        font-size: 12pt;
+      }
+
+      .x.axis text {
+        font-size: 10pt;
+      }
+      .text{
+        font-size: 5pt;
+      }
+      .label{
+        margin-top: 30px;
+        margin-right: 80px;
+        margin-left: 80px
+      }
+      .header{
+        text-align: center;
+      }
+     
+
+    </style>
+  </head>
+    
+  
+  <body>
+    <div class = "header">
+      <h1>The Population of Each Religion in the Top 5 Populous Countries </h1>
+      <p style="text-align:left;
+      margin-left:80px">
+        Select Country to see population of each religion. And sort the population in descending order.
+      </p>
+    </div>
+    <div class="area1" id="area1"></div>
+    <div class="label">
+      <select onchange="loadData()" id="metric">
+      <option value="0" selected disabled>Select Country</option>
+      <option value="1">China</option>
+      <option value="2">Indonesia</option>
+      <option value="3">Brazil</option>
+      <option value="4">United States</option>
+      <option value="5">India</option>
+    </select>
+    <input type=checkbox>Sort values</input>
+  </div>
+  <div style="text-align:center">
+    <p>
+      <a href="stackedBar.html">
+      See Religion Difference of the Five Country
+    </a>
+    </p>
+  </div>
+
+    <script>
+      var outerWidth = 900;
+      var outerHeight = 400;
+      var margin = { left: 90, top: 30, right: 30, bottom: 50 };
+      var barPadding = 0.2;
+
+      var xColumn = "religion";
+      var yColumn = "population";
+
+      var innerWidth  = outerWidth  - margin.left - margin.right;
+      var innerHeight = outerHeight - margin.top  - margin.bottom;
+
+      //append svg
+      var svg = d3.select("#area1").append("svg")
+        .attr("width",  outerWidth)
+        .attr("height", outerHeight)
+        .attr("x","80");
+      //group svg elements
+      var g = svg.append("g")
+        .attr("transform", "translate(200,30)");
+        //sort value
+      var religionIndex = function(religionName){
+        var religions = {
+        Christian: 1, 
+        Muslim: 2, 
+        Unaffiliated: 3, 
+        Hindu: 4, 
+        Buddhist: 5,
+        FolkReligions: 6, 
+        OtherReligions: 7, 
+        Jewish: 8
+      };
+             return religions[religionName];
+      }
+      //group x axis
+      var xAxisG = g.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + innerHeight + ")");
+      //group y axis
+      var yAxisG = g.append("g")
+        .attr("class", "y axis");
+      //leave the attribute domain to set inside function render
+      
+      //leave the attribute domain o set inside function render
+     
+
+      // Use a modified SI formatter that uses "B" for Billion.
+      var siFormat = d3.format("s");
+      var customTickFormat = function (d){
+        return siFormat(d).replace("G", "B");
+      };
+
+    
+
+      function render(data){
+      //domain setting relys on data input
+        var xScale = d3.scale.ordinal()
+                      .rangeBands([0, innerWidth], barPadding)
+                      .domain(data.map( function (d){ return d[xColumn]; }));
+        var yScale = d3.scale.linear()
+                      .range([innerHeight, 0])
+                      .domain([0, d3.max(data, function (d){ return d[yColumn]; })]);
+        var rect = g.selectAll(".bar")
+                .data(data);
+    rect.enter().append("rect");
+    //how the y axis is removed
+    rect.exit().remove();
+    rect.attr("class","bar")
+        .attr("width", xScale.rangeBand())
+        .attr("x",      function (d){ return               xScale(d[xColumn]); })
+        .attr("y",      function (d){ return               yScale(d[yColumn]); })
+        .attr("height", function (d){ return innerHeight - yScale(d[yColumn]); })
+        .on("mouseover",function(){
+          d3.select(this)
+          .attr("fill","orange")
+        })
+        .on("mouseout",function(){
+          d3.select(this)
+          .transition()
+          .duration(250)
+          .attr("fill","black");
+        });
+        //call xAxis should put inside render function!!!
+        var xAxis = d3.svg.axis()
+                    
+                    .scale(xScale)
+                    .orient("bottom")
+                    .outerTickSize(0);
+        d3.select('.x.axis').call(xAxis)
+          .selectAll("text")
+          .attr("dx", "-.8em")
+          .attr("dy", "1em")
+          .attr("transform", "rotate(-20)" ) ;
+
+        /*d3.select('.x.axis')
+          .append("text")
+          .text("Religion")
+          .attr("x",350)
+          .attr("y",40)
+          .style("font-size","12pt");*/
+
+        var yAxis = d3.svg.axis()
+                      .scale(yScale)
+                      .orient("left")
+                      .ticks(5)
+                      .tickFormat(customTickFormat)
+                      .outerTickSize(0);
+        
+        d3.select('.y.axis')
+        .call(yAxis)
+        .append("text")
+        .attr("y", -6)
+        .style("text-anchor", "end")
+        .style("font-size","12pt")
+        .text("Population");
+        
+        
+        //bind data
+        
+        d3.select("input").on("change",function(){
+          var sortByPopulation = function(a,b){
+            return b[yColumn] - a[yColumn];
+          };
+          var sortByReligion = function(a, b) { return d3.ascending(religionIndex(a[xColumn]), religionIndex(b[xColumn])); };
+          var sortedReligion = data.sort(this.checked ? sortByPopulation : sortByReligion)
+                              .map(function(d) { return d[xColumn];})
+          xScale.domain(sortedReligion)
+ 
+     var transition = svg.transition().duration(750);
+     var delay = function(d, i) { return i * 50; };
+ 
+     transition.selectAll(".bar")
+         .delay(delay)
+         .attr("x", function(d) { return xScale(d[xColumn]); });
+ 
+     transition.select(".x.axis")
+         .call(xAxis)
+         .selectAll("g")
+         .delay(delay);
+   
+        });
+/*
+        var sortTimeout = setTimeout(function() {
+            d3.select("input").property("checked", true).each(change);
+            }, 2000);*/
+        
+      }
+
+      function type(d){
+        d.population = +d.population;
+        return d;
+      }
+      
+      var loadData = function(){
+          var metric = document.getElementById("metric").selectedOptions[0].text;
+          var dataFile = "data/"+metric + ".csv"
+          d3.csv(dataFile,type,render);
+      }
+      loadData();
+    </script>
+  </body>
+</html>
